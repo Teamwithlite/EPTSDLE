@@ -78,7 +78,7 @@ export default function EPTSGame() {
   const loadStudents = async () => {
     try {
       setLoading(true)
-      const response = await fetch('@/components/ui/EPTSdle.xlsx')
+      const response = await fetch('/EPTSdle.xlsx')
       const arrayBuffer = await response.arrayBuffer()
       const data = new Uint8Array(arrayBuffer)
       const workbook = XLSX.read(data, { type: 'array' })
