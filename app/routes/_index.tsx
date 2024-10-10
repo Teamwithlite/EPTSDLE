@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import img from '@/components/ui/James.png' // Assuming the image file is a PNG
 import {
   Card,
   CardContent,
@@ -188,8 +189,8 @@ export default function EPTSGame() {
     setError(null)
   }
   const handleSuggestionClick = (suggestion: string) => {
-    setGuessInput(suggestion)
     setShowSuggestions(false)
+    setGuessInput(suggestion)
   }
 
   const GuessCard = ({ guess }: { guess: GuessHistory }) => (
@@ -225,6 +226,21 @@ export default function EPTSGame() {
         </div>
       </CardContent>
     </Card>
+  )
+  const CongratulationsModal = () => (
+    <div className='fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50'>
+      <div className='bg-[#1F1F1F] p-6 rounded-xl shadow-lg text-center'>
+        <h2 className='text-2xl font-bold text-white mb-4'>Congratulations!</h2>
+        <img className='w-80 h-80 mx-auto' src={img} />
+        <p className='mb-4 text-white'>You guessed the correct student!</p>
+        <Button
+          onClick={resetGame}
+          className='bg-[#3D5AFE] text-white rounded-full px-8 py-2 hover:bg-blue'
+        >
+          Play Again
+        </Button>
+      </div>
+    </div>
   )
 
   if (loading) {
@@ -307,11 +323,7 @@ export default function EPTSGame() {
               </div>
             )}
 
-            {gameWon && (
-              <div className='text-white text-center py-2 px-4 rounded-lg bg-green font-bold'>
-                Congratulations! You guessed the correct student!
-              </div>
-            )}
+            {gameWon && CongratulationsModal()}
           </CardContent>
 
           <CardFooter className='flex justify-center pt-4'>
