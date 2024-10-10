@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import logo from '@/components/ui/image-removebg-preview.png'
 import {
   Card,
   CardContent,
@@ -31,18 +30,50 @@ interface Feedback {
   hint?: 'higher' | 'lower'
 }
 
+interface GuessHistory {
+  student: Student
+  feedback: Feedback[]
+}
+
 export default function EPTSGame() {
   const [students, setStudents] = useState<Student[]>([])
   const [correctStudent, setCorrectStudent] = useState<Student | null>(null)
   const [guessInput, setGuessInput] = useState('')
-  const [feedback, setFeedback] = useState<Feedback[]>([])
+  const [guessHistory, setGuessHistory] = useState<GuessHistory[]>([])
   const [gameWon, setGameWon] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([])
+  const suggestionRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     loadStudents()
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionRef.current &&
+        !suggestionRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    if (guessInput.length > 0) {
+      const filtered = students
+        .map((student) => student.Students)
+        .filter((name) => name.toLowerCase().includes(guessInput.toLowerCase()))
+        .slice(0, 5) // Limit to 5 suggestions
+      setFilteredSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setShowSuggestions(false)
+    }
+  }, [guessInput, students])
 
   const loadStudents = async () => {
     try {
@@ -65,7 +96,6 @@ export default function EPTSGame() {
       setLoading(false)
     }
   }
-
   const compareNumeric = (
     actual: number | '?',
     guess: number | '?',
@@ -131,11 +161,16 @@ export default function EPTSGame() {
       return
     }
 
+    const newFeedback = getFeedback(correctStudent, guessedStudent)
+    const newGuessHistory = {
+      student: guessedStudent,
+      feedback: newFeedback,
+    }
+
+    setGuessHistory([newGuessHistory, ...guessHistory])
+
     if (guessedStudent.Students === correctStudent.Students) {
       setGameWon(true)
-      setFeedback([])
-    } else {
-      setFeedback(getFeedback(correctStudent, guessedStudent))
     }
 
     setGuessInput('')
@@ -149,9 +184,48 @@ export default function EPTSGame() {
     const randomStudent = students[Math.floor(Math.random() * students.length)]
     setCorrectStudent(randomStudent)
     setGameWon(false)
-    setFeedback([])
+    setGuessHistory([])
     setError(null)
   }
+  const handleSuggestionClick = (suggestion: string) => {
+    setGuessInput(suggestion)
+    setShowSuggestions(false)
+  }
+
+  const GuessCard = ({ guess }: { guess: GuessHistory }) => (
+    <Card className='bg-[#1F1F1F] shadow-xl w-full rounded-3xl mb-4'>
+      <CardHeader>
+        <CardTitle className='text-[#E0E0E0] text-xl space-y-10'>
+          {guess.student.Students}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className='grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4'>
+          {guess.feedback.map(({ key, guessedValue, isCorrect, hint }) => (
+            <div key={key} className='flex  w-40 h-30 flex-col space-y-2'>
+              <span className='text-[#B3B3B3] text-sm'>{key}</span>
+              <div
+                className={`px-3 py-1 rounded-lg flex items-center justify-center ${
+                  isCorrect ? 'bg-green text-white' : 'bg-red-500 text-white'
+                }`}
+              >
+                <span className='truncate'>{guessedValue}</span>
+                {hint && (
+                  <span className='ml-1'>
+                    {hint === 'higher' ? (
+                      <ArrowUp className='h-4 w-4' />
+                    ) : (
+                      <ArrowDown className='h-4 w-4' />
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
 
   if (loading) {
     return (
@@ -169,8 +243,8 @@ export default function EPTSGame() {
         </h1>
       </nav>
 
-      <div className='px-4 py-6 w-full max-w-md'>
-        <Card className='bg-[#1F1F1F] shadow-xl rounded-3xl'>
+      <div className='px-4 py-6 w-460'>
+        <Card className='bg-[#1F1F1F] w-full shadow-xl rounded-3xl mb-6'>
           <CardHeader>
             <CardTitle className='text-[#E0E0E0] text-2xl'>
               Guess the EPTS Student
@@ -182,25 +256,49 @@ export default function EPTSGame() {
           </CardHeader>
 
           <CardContent className='space-y-4'>
-            <div className='flex space-x-3'>
-              <Input
-                className='flex-grow bg-[#2C2C2C] text-white border-none rounded-xl'
-                placeholder='Enter student name'
-                value={guessInput}
-                onChange={(e) => {
-                  setGuessInput(e.target.value)
-                  setError(null)
-                }}
-                onKeyPress={handleKeyPress}
-                disabled={gameWon}
-              />
-              <Button
-                className='bg-[#3D5AFE] text-white rounded-2xl px-6 hover:bg-[#536DFE]'
-                onClick={handleGuess}
-                disabled={gameWon || !guessInput.trim()}
-              >
-                Guess
-              </Button>
+            <div className='flex flex-col relative' ref={suggestionRef}>
+              <div className='flex space-x-3'>
+                <Input
+                  className='flex-grow bg-[#2C2C2C] text-white border-none rounded-xl'
+                  placeholder='Enter student name'
+                  value={guessInput}
+                  onChange={(e) => {
+                    setGuessInput(e.target.value)
+                    setError(null)
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleGuess()
+                      setShowSuggestions(false)
+                    }
+                  }}
+                  disabled={gameWon}
+                />
+                <Button
+                  className='bg-[#3D5AFE] text-white rounded-2xl px-6 hover:bg-[#536DFE]'
+                  onClick={() => {
+                    handleGuess()
+                    setShowSuggestions(false)
+                  }}
+                  disabled={gameWon || !guessInput.trim()}
+                >
+                  Guess
+                </Button>
+              </div>
+
+              {showSuggestions && (
+                <div className='absolute top-full left-0 right-0 mt-1 bg-[#2C2C2C] rounded-xl shadow-lg z-10'>
+                  {filteredSuggestions.map((suggestion, index) => (
+                    <div
+                      key={index}
+                      className='px-4 py-2 hover:bg-[#3D5AFE] cursor-pointer text-white'
+                      onClick={() => handleSuggestionClick(suggestion)}
+                    >
+                      {suggestion}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {error && (
@@ -210,39 +308,8 @@ export default function EPTSGame() {
             )}
 
             {gameWon && (
-              <div className='text-green text-center py-2 px-4 rounded-lg bg-green-500/10 font-bold'>
+              <div className='text-white text-center py-2 px-4 rounded-lg bg-green font-bold'>
                 Congratulations! You guessed the correct student!
-              </div>
-            )}
-
-            {feedback.length > 0 && (
-              <div className='space-y-2'>
-                <h3 className='font-bold text-white mb-4'>Feedback:</h3>
-                {feedback.map(({ key, guessedValue, isCorrect, hint }) => (
-                  <div
-                    key={key}
-                    className='flex justify-between items-center py-1'
-                  >
-                    <span className='text-white'>{key}:</span>
-                    <div className='flex items-center gap-2'>
-                      <div
-                        className={`px-3 py-1 rounded-lg flex items-center ${
-                          isCorrect
-                            ? 'bg-green  text-white border-green'
-                            : 'bg-red-500/20 text-white border border-red-500'
-                        }`}
-                      >
-                        {guessedValue}
-                        {hint &&
-                          (hint === 'higher' ? (
-                            <ArrowUp className='ml-2 h-4 w-4' />
-                          ) : (
-                            <ArrowDown className='ml-2 h-4 w-4' />
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
           </CardContent>
@@ -256,6 +323,12 @@ export default function EPTSGame() {
             </Button>
           </CardFooter>
         </Card>
+
+        <div className='space-y-4'>
+          {guessHistory.map((guess, index) => (
+            <GuessCard key={index} guess={guess} />
+          ))}
+        </div>
       </div>
     </div>
   )
