@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { ArrowDown, ArrowUp } from 'lucide-react'
+import { ArrowDown, ArrowUp, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 interface Student {
@@ -37,6 +37,7 @@ interface GuessHistory {
 }
 
 export default function EPTSGame() {
+  const [showAnswerModal, setShowAnswerModal] = useState(false)
   const [students, setStudents] = useState<Student[]>([])
   const [correctStudent, setCorrectStudent] = useState<Student | null>(null)
   const [guessInput, setGuessInput] = useState('')
@@ -149,7 +150,9 @@ export default function EPTSGame() {
       }
     })
   }
-
+  const handleShowAnswer = () => {
+    setShowAnswerModal(true)
+  }
   const handleGuess = () => {
     if (!correctStudent) return
 
@@ -187,7 +190,9 @@ export default function EPTSGame() {
     setGameWon(false)
     setGuessHistory([])
     setError(null)
+    setShowAnswerModal(false)
   }
+
   const handleSuggestionClick = (suggestion: string) => {
     setShowSuggestions(false)
     setGuessInput(suggestion)
@@ -242,6 +247,63 @@ export default function EPTSGame() {
       </div>
     </div>
   )
+  const AnswerModal = () => {
+    if (!correctStudent) return null
+
+    return (
+      <div className='fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50'>
+        <div className='bg-[#1F1F1F] p-6 rounded-xl shadow-lg max-w-md w-full'>
+          <div className='flex justify-between items-center mb-4'>
+            <h2 className='text-2xl font-bold text-white'>
+              Better luck next time!
+            </h2>
+            <Button
+              variant='ghost'
+              onClick={() => setShowAnswerModal(false)}
+              className='text-white hover:bg-gray-700 rounded-full p-2'
+            >
+              <X className='h-6 w-6' />
+            </Button>
+          </div>
+
+          <div className='space-y-4'>
+            <div className='text-center mb-6'>
+              <p className='text-xl text-white font-semibold'>
+                {correctStudent.Students}
+              </p>
+            </div>
+
+            {Object.entries(correctStudent).map(([key, value]) => {
+              if (key === 'Students') return null // Skip the name since we already showed it
+              return (
+                <div key={key} className='bg-[#2C2C2C] p-3 rounded-lg'>
+                  <p className='text-[#B3B3B3] text-sm'>{key}</p>
+                  <p className='text-white font-medium'>{value.toString()}</p>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className='mt-6 flex justify-center'>
+            <Button
+              onClick={resetGame}
+              className='bg-[#3D5AFE] text-white rounded-full px-8 py-2 hover:bg-[#536DFE]'
+            >
+              Play Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className='flex justify-center items-center h-screen'>
+        <div className='animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500'></div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -282,12 +344,7 @@ export default function EPTSGame() {
                     setGuessInput(e.target.value)
                     setError(null)
                   }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleGuess()
-                      setShowSuggestions(false)
-                    }
-                  }}
+                  onKeyPress={handleKeyPress}
                   disabled={gameWon}
                 />
                 <Button
@@ -322,17 +379,23 @@ export default function EPTSGame() {
                 {error}
               </div>
             )}
-
-            {gameWon && CongratulationsModal()}
           </CardContent>
 
-          <CardFooter className='flex justify-center pt-4'>
+          <CardFooter className='flex justify-center pt-4 space-x-4'>
             <Button
               onClick={resetGame}
               className='bg-[#3D5AFE] text-white rounded-full px-8 py-2 hover:bg-[#536DFE]'
             >
-              {gameWon ? 'Play Again' : 'Reset Game'}
+              Reset Game
             </Button>
+            {!gameWon && (
+              <Button
+                onClick={handleShowAnswer}
+                className='bg-red-500 text-white rounded-full px-8 py-2 hover:bg-red-600'
+              >
+                Show Answer
+              </Button>
+            )}
           </CardFooter>
         </Card>
 
@@ -342,6 +405,9 @@ export default function EPTSGame() {
           ))}
         </div>
       </div>
+
+      {gameWon && <CongratulationsModal />}
+      {showAnswerModal && <AnswerModal />}
     </div>
   )
 }
