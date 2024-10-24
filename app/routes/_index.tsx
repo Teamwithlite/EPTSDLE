@@ -1,15 +1,7 @@
 import React, { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import QuoteGuesser from './quote'
 import EPTSGame from './eptsdle'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 
 export default function CombinedGame() {
   const [isEPTSGame, setIsEPTSGame] = useState(false)

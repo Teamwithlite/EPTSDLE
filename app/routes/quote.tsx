@@ -13,7 +13,7 @@ import { X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 interface Student {
-  Students?: string // Make optional to handle potential undefined
+  Students?: string
   Quote: string
 }
 
@@ -27,7 +27,24 @@ export default function QuoteGuesser() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([])
   const [guessCount, setGuessCount] = useState(0)
+  const [currentHint, setCurrentHint] = useState<string | null>(null)
   const suggestionRef = useRef<HTMLDivElement>(null)
+
+  // Function to generate hints based on the student's name
+  const generateHint = (studentName: string): string => {
+    if (!studentName) return ''
+
+    const hints = [
+      `First letter: ${studentName[0]}`,
+      `Length: ${studentName.length} characters`,
+      `First two letters: ${studentName.slice(0, 2)}`,
+      `Last letter: ${studentName[studentName.length - 1]}`,
+      `Contains ${(studentName.match(/[aeiou]/gi) || []).length} vowels`,
+    ]
+
+    const hintIndex = Math.floor((guessCount - 5) / 2)
+    return hints[Math.min(hintIndex, hints.length - 1)]
+  }
 
   useEffect(() => {
     loadStudentQuotes()
@@ -46,7 +63,6 @@ export default function QuoteGuesser() {
   }, [])
 
   useEffect(() => {
-    // Handle cases where students array might be empty
     if (students.length === 0) {
       setFilteredSuggestions([])
       setShowSuggestions(false)
@@ -55,18 +71,27 @@ export default function QuoteGuesser() {
 
     if (guessInput.length > 0) {
       const filtered = students
-        .map((student) => student.Students) // Get Students property
+        .map((student) => student.Students)
         .filter((name) =>
           name?.toLowerCase().includes(guessInput.toLowerCase()),
-        ) // Use optional chaining
-        .slice(0, 5) // Limit to 5 suggestions
+        )
+        .slice(0, 5)
 
-      setFilteredSuggestions(filtered as string[]) // Cast to string[]
+      setFilteredSuggestions(filtered as string[])
       setShowSuggestions(filtered.length > 0)
     } else {
       setShowSuggestions(false)
     }
   }, [guessInput, students])
+
+  // Update hint when guess count changes
+  useEffect(() => {
+    if (guessCount >= 5 && currentQuote?.Students) {
+      setCurrentHint(generateHint(currentQuote.Students))
+    } else {
+      setCurrentHint(null)
+    }
+  }, [guessCount, currentQuote])
 
   const loadStudentQuotes = async () => {
     try {
@@ -81,7 +106,6 @@ export default function QuoteGuesser() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const jsonData = XLSX.utils.sheet_to_json<Student>(worksheet) as Student[]
 
-      console.log(jsonData) // Log to check the structure of data
       setStudents(jsonData)
       selectRandomQuote(jsonData)
     } catch (error) {
@@ -103,7 +127,6 @@ export default function QuoteGuesser() {
     setGuessCount(guessCount + 1)
 
     if (guessInput.toLowerCase() === currentQuote.Students?.toLowerCase()) {
-      // Use optional chaining
       setGameWon(true)
     } else {
       setError('Incorrect guess. Try again!')
@@ -121,6 +144,7 @@ export default function QuoteGuesser() {
     setGameWon(false)
     setGuessCount(0)
     setError(null)
+    setCurrentHint(null)
   }
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -164,6 +188,14 @@ export default function QuoteGuesser() {
               <div className='bg-[#2C2C2C] p-4 rounded-xl mb-4'>
                 <p className='text-white text-lg italic'>
                   "{currentQuote.Quote}"
+                </p>
+              </div>
+            )}
+
+            {currentHint && (
+              <div className='bg-[#3D5AFE]/20 p-4 rounded-xl mb-4'>
+                <p className='text-[#3D5AFE] font-medium'>
+                  Hint: {currentHint}
                 </p>
               </div>
             )}
